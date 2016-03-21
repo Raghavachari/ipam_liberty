@@ -277,3 +277,84 @@ class utils:
             if n['name'] == sn_name:
                 return n['id']
         return None
+
+    def create_router(self, router_name, network_name):
+        """
+        Create Router
+        """
+        net_id1, tenant_id = self.get_net_id(network_name)
+        r = {'router': {'name': router_name, 'admin_state_up': True, 'external_gateway_info': {'network_id': net_id1}}}
+        router = self.neutron_client.create_router(body=r)
+        rt_dict = router['router']
+        rt_id = rt_dict['id']
+        logger.info("Created Router '%s'", router_name)
+        logger.debug("Router ID of '%s' : %s", router_name, rt_id)
+
+    def get_routers(self):
+
+        routers_list = self.neutron_client.list_routers(retrieve_all=True)
+        return routers_list['routers']
+
+    def get_rout_id(self, rt_name):
+
+        rt = self.get_routers()
+        for n in rt:
+            if n['name'] == rt_name:
+                return n['id']
+        return None
+
+    def delete_router(self, router_name):
+        router_id = self.get_rout_id(router_name)
+        self.neutron_client.delete_router(router=router_id)
+
+    def create_port(self, interface_name, network_name):
+        net_id, tenant_id = self.get_net_id(network_name)
+        port = {'port': {'name': interface_name, 'admin_state_up': True, 'network_id': net_id}}
+        port_info = self.neutron_client.create_port(body=port)
+
+    def get_ports(self):
+        ports = self.neutron_client.list_ports()
+        return ports['ports']
+
+    def get_port_id(self, interface_name):
+        pt = self.get_ports()
+        for n in pt:
+            if n['name'] == interface_name:
+                return n['id']
+        return None
+
+    def get_instance_port_id(self, ip):
+        pt = self.get_ports()
+        for n in pt:
+            if n['fixed_ips'][0]['ip_address'] == ip:
+                return n['id']
+        return None
+
+    def add_router_interface(self, interface_name, router_name):
+        router_id = self.get_rout_id(router_name)
+        port_id = self.get_port_id(interface_name)
+        body = {'port_id':port_id}
+        rt = self.neutron_client.add_interface_router(router=router_id, body=body)
+        logger.info("Created Internal Interface '%s' under the Router '%s'", interface_name, router_name)
+
+    def remove_router_interface(self, interface_name, router_name):
+        router_id = self.get_rout_id(router_name)
+        port_id = self.get_port_id(interface_name)
+        body = {'port_id':port_id}
+        rt = self.neutron_client.remove_interface_router(router=router_id, body=body)
+        logger.info("Deleted Internal Interface '%s' under the Router '%s'", interface_name, router_name)
+
+    def add_floating_ip(self, instance_name):
+        floating_ip = self.nova_client.floating_ips.create()
+        instance = self.nova_client.servers.find(name=instance_name)
+        instance.add_floating_ip(floating_ip)
+
+    def delete_floating_ip(self, instance_name):
+        fip_list = self.nova_client.floating_ips.list()
+        floating_ip = fip_list[0].ip
+        floating_ip_id = fip_list[0].id
+        instance = self.nova_client.servers.find(name=instance_name)
+        instance.remove_floating_ip(floating_ip)
+        self.nova_client.floating_ips.delete(floating_ip_id)
+
+ 
