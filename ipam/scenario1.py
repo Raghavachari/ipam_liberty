@@ -5,7 +5,7 @@ import unittest
 tenant_name = "admin"
 network = "net"
 subnet_name = "snet"
-subnet = "69.69.0.0/24"
+subnet = "129.127.0.0/24"
 instance = "host"
 
 class scenario1(unittest.TestCase):
@@ -37,9 +37,8 @@ s = utils(tenant_name)
 s.create_network(network)
 s.create_subnet(network, subnet_name, subnet)
 s1 = s.launch_instance(instance, network)
-#get host name
-host_name = s.get_hostname_pattern_from_grid_config(s1,network,subnet_name)
-#print host_name
+ips = s.get_instance_ips(instance)
+host_name = s.get_hostname_pattern_from_grid_config(ips['net'][0]['addr'],s1,network,subnet_name)
 
 print "*" * 70
 print "Starts Tests"

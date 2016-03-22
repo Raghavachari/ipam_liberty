@@ -66,14 +66,14 @@ class utils:
 	
 	return domainsuffixpat
 	    
-    def get_hostname_pattern_from_grid_config(self,instanceobj,network,subnet):
+    def get_hostname_pattern_from_grid_config(self,ipadd,instanceobj,network,subnet):
 	'''
 	Gets Host name from 'Default Host Name Pattern' in grid configuration
 	'''
         extattrs = self.get_grid_configuration()
 	fqdn = self.get_domain_suffix_pattern_from_grid_config(network,subnet)
 	hostpat = extattrs['Default Host Name Pattern']['value']
-	ipadd = instanceobj.addresses[network][0]['addr'] 
+	#ipadd = instanceobj.addresses[network][0]['addr'] 
 	ipsplit = ipadd.split(".")
 	ipadd = ipadd.replace(".","-")
 	if re.search("{tenant_id}", hostpat):
@@ -357,4 +357,12 @@ class utils:
         instance.remove_floating_ip(floating_ip)
         self.nova_client.floating_ips.delete(floating_ip_id)
 
- 
+    def get_instance_name(self, instance):
+        name = instance.name
+        return name
+
+    def get_instance_ips(self, instance_name):
+        instance = self.nova_client.servers.find(name=instance_name) 
+        ips = self.nova_client.servers.ips(instance.id)
+        return ips
+   
