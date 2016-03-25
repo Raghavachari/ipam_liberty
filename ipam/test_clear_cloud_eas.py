@@ -1,11 +1,17 @@
 from util import *
 from json import loads
+from json import dumps
 import unittest
+import ConfigParser
 
 tenant_name = "admin"
 network = "net"
 subnet_name = "snet"
 subnet = "69.69.0.0/24"
+CONF = "config.ini"
+parser = ConfigParser.SafeConfigParser()
+parser.read(CONF)
+gm_ip = parser.get('Default', 'GRID_VIP')
 
 class beforeDelete(unittest.TestCase):
     def test_Network_added_to_NIOS(self):
@@ -73,6 +79,14 @@ class afterDelete(unittest.TestCase):
         else:
             self.fail("Tenant ID EA Not set")
 
+
+# Updating Grid Configuration
+params="?ipv4_address=" + gm_ip
+gm_ref = wapi_request('GET', object_type="member", params=params)
+ref = loads(gm_ref)[0]['_ref']
+data = {"extattrs+": {"Default Host Name Pattern": {"value": "host-{ip_address}"}, "Default Network View Scope": {"value": "Tenant"}, "Admin Network Deletion": {"value": "False"}, "DHCP Support": {"value": "True"}, "DNS Support": {"value": "True"}, "IP Allocation Strategy": {"value": "Host Record"}, "Default Domain Name Pattern": {"value": "{subnet_id}.cloud.global.com"}}}
+wapi_request('PUT', object_type=ref,fields=dumps(data))
+
 s = utils(tenant_name)
 s.create_network(network,external=True)
 s.create_subnet(network, subnet_name, subnet)
@@ -99,3 +113,11 @@ unittest.TextTestRunner(verbosity=2).run(suite)
 print "*" * 70
 print "End of Tests"
 print "*" * 70
+
+
+print "Deleting Networkview from NIOS"
+netview = "admin-" + tenant_id
+params="?name=" + netview
+netview = wapi_request('GET', object_type="networkview", params=params)
+ref = loads(netview)[0]['_ref']
+wapi_request('DELETE', object_type=ref)
