@@ -20,13 +20,21 @@ class scenario1(unittest.TestCase):
         else:
             self.fail("Network %s is not added to NIOS" % subnet)
 
-    def test_Host_record_added_to_NIOS(self):
+    def test_A_record_added_to_NIOS(self):
         args = "name=%s" % (host_name)
         code, msg = wapi_get_request("record:a", args)
         if code == 200 and len(loads(msg)) > 0:
             self.assertEqual(loads(msg)[0]['name'], host_name)
         else:
-            self.fail("Host %s is not added to NIOS" % host_name)
+            self.fail("Record:A %s is not added to NIOS" % host_name)
+
+    def test_ptr_record_added_to_NIOS(self):
+        args = "ptrdname=%s" % (host_name)
+        code, msg = wapi_get_request("record:p", args)
+        if code == 200 and len(loads(msg)) > 0:
+            self.assertEqual(loads(msg)[0]['name'], host_name)
+        else:
+            self.fail("Record:PTR %s is not added to NIOS" % host_name)
 
 # EA Test For Instance Object
 

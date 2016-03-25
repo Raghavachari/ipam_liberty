@@ -5,11 +5,29 @@ from neutronclient.v2_0 import client
 import os, re, time, shlex, subprocess
 import ConfigParser, logging, sys
 import pdb
+import ssl
+import requests
 
-GRID_VIP = "10.39.19.140"
-USERNAME = "cloud"
-PASSWORD = "cloud"
+#GRID_VIP = "10.39.19.140"
+#USERNAME = "cloud"
+#PASSWORD = "cloud"
 #NEUTRON_CONF = "/etc/neutron/infoblox_conditional.conf"
+
+CONF = "config.ini"
+parser = ConfigParser.SafeConfigParser()
+parser.read(CONF)
+GRID_VIP = parser.get('Default', 'GRID_VIP')
+USERNAME = parser.get('Default', 'USERNAME')
+PASSWORD = parser.get('Default', 'PASSWORD')
+ADMIN_USERNAME = parser.get('Default', 'ADMIN_USERNAME')
+ADMIN_PASSWORD = parser.get('Default', 'ADMIN_PASSWORD')
+WAPI = parser.get('Default', 'WAPI')
+DEFAULT_OBJECT_TYPE = 'network'
+URLENCODED = 'application/json'
+DEFAULT_CONTENT_TYPE = URLENCODED
+VERSION = '2.3'
+PATH = '/wapi/v' + VERSION + '/'
+
 log_level = logging.INFO
 if os.environ.has_key("DEBUG") and os.environ['DEBUG'] == "1":
     log_level = logging.DEBUG
@@ -23,10 +41,61 @@ def wapi_get_request(object_type, args):
     auth_header['content-type'] = "application/json"
     auth_header['Authorization'] = "Basic %s" % (auth)
     conn = httplib.HTTPSConnection(GRID_VIP)
-    req = "/wapi/v2.3/" + object_type + "?" + args
+    #req = "/wapi/v2.3/" + object_type + "?" + args
+    req = "/wapi/" + WAPI + "/" + object_type + "?" + args
     conn.request("GET", req, headers=auth_header)
     response = conn.getresponse()
     return response.status, response.read()
+
+def wapi_request(operation, ref='', params='', fields='', \
+                    object_type=DEFAULT_OBJECT_TYPE, \
+                    content_type=DEFAULT_CONTENT_TYPE):
+    '''
+    Send an HTTPS request to the NIOS server.
+    '''
+    # Create connection and request header.
+    # This class does not perform any verification of the server`s certificate.
+    #conn = httplib.HTTPSConnection(GRID_VIP,context=ssl._create_unverified_context())
+    conn = httplib.HTTPSConnection(GRID_VIP)
+    auth_header = 'Basic %s' % (':'.join([ADMIN_USERNAME, ADMIN_PASSWORD])
+                                .encode('Base64').strip('\r\n'))
+    request_header = {'Authorization':auth_header,
+                      'Content-Type': content_type}
+    if ref:
+        url = PATH + ref
+    else:
+        url = PATH + object_type
+    if params:
+        url += params
+    conn.request(operation, url, fields, request_header)
+    response = conn.getresponse();
+    if response.status >= 200 and response.status < 300:
+        return handle_success(response)
+    else:
+        return handle_exception(response)
+
+def handle_exception(response):
+    '''
+    If there was encountered an error while performing requested action,
+    print response code and error message.
+    '''
+    logging.info('Request finished with error, response code: %i %s'\
+            % (response.status, response.reason))
+    json_object = loads(response.read())
+    logging.info('Error message: %s' % json_object['Error'])
+    raise Exception('WAPI Error message: %s' % json_object['Error'])
+    return json_object
+
+
+def handle_success(response):
+    '''
+    If the action requested by the client was received, understood, accepted
+    and processed successfully, print response code and return response body.
+    '''
+    logging.info('Request finished successfully with response code: %i %s'\
+            % (response.status, response.reason))
+    return response.read()
+
 
 class utils:
     def __init__(self, tenant_name):

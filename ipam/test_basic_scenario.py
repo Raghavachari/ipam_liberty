@@ -60,7 +60,7 @@ class BasicScenarioFixedAddress(unittest.TestCase):
         args = "ptrdname=%s" % (host_name)
         code, msg = wapi_get_request("record:ptr", args)
         if code == 200 and len(loads(msg)) > 0:
-            self.assertEqual(loads(msg)[0]['name'], host_name)
+            self.assertEqual(loads(msg)[0]['ptrdname'], host_name)
         else:
             self.fail("PTR Record for %s not added to NIOS" % host_name)
 
