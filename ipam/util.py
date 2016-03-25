@@ -21,12 +21,11 @@ USERNAME = parser.get('Default', 'USERNAME')
 PASSWORD = parser.get('Default', 'PASSWORD')
 ADMIN_USERNAME = parser.get('Default', 'ADMIN_USERNAME')
 ADMIN_PASSWORD = parser.get('Default', 'ADMIN_PASSWORD')
-WAPI = parser.get('Default', 'WAPI')
+WAPI = parser.get('Default', 'WAPI_VERSION')
 DEFAULT_OBJECT_TYPE = 'network'
 URLENCODED = 'application/json'
 DEFAULT_CONTENT_TYPE = URLENCODED
-VERSION = '2.3'
-PATH = '/wapi/v' + VERSION + '/'
+PATH = '/wapi/v' + WAPI + '/'
 
 log_level = logging.INFO
 if os.environ.has_key("DEBUG") and os.environ['DEBUG'] == "1":
@@ -42,7 +41,7 @@ def wapi_get_request(object_type, args):
     auth_header['Authorization'] = "Basic %s" % (auth)
     conn = httplib.HTTPSConnection(GRID_VIP)
     #req = "/wapi/v2.3/" + object_type + "?" + args
-    req = "/wapi/" + WAPI + "/" + object_type + "?" + args
+    req = "/wapi/v" + WAPI + "/" + object_type + "?" + args
     conn.request("GET", req, headers=auth_header)
     response = conn.getresponse()
     return response.status, response.read()
