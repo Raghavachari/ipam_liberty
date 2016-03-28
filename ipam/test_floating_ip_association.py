@@ -1,6 +1,8 @@
 from util import *
 from json import loads
 import unittest
+from json import dumps
+import ConfigParser
 
 tenant_name = "admin"
 network = "net"
@@ -10,6 +12,12 @@ ext_snet_name = "public_snet"
 ext_snet = "10.39.12.0/24"
 subnet = "129.127.0.0/24"
 instance = "host"
+
+CONF = "config.ini"
+parser = ConfigParser.SafeConfigParser()
+parser.read(CONF)
+gm_ip = parser.get('Default', 'GRID_VIP')
+
 
 class scenario1(unittest.TestCase):
     def test_Network_added_to_NIOS(self):
@@ -30,9 +38,9 @@ class scenario1(unittest.TestCase):
 
     def test_ptr_record_added_to_NIOS(self):
         args = "ptrdname=%s" % (host_name)
-        code, msg = wapi_get_request("record:p", args)
+        code, msg = wapi_get_request("record:ptr", args)
         if code == 200 and len(loads(msg)) > 0:
-            self.assertEqual(loads(msg)[0]['name'], host_name)
+            self.assertEqual(loads(msg)[0]['ptrdname'], host_name)
         else:
             self.fail("Record:PTR %s is not added to NIOS" % host_name)
 
@@ -671,6 +679,12 @@ class scenario1(unittest.TestCase):
                 'OpenStack')
         else:
             self.fail("EA for cmp_type is not OpenStack")
+
+params="?ipv4_address=" + gm_ip
+gm_ref = wapi_request('GET', object_type="member", params=params)
+ref = loads(gm_ref)[0]['_ref']
+data = {"extattrs+": {"Default Host Name Pattern": {"value": "host-{ip_address}"}, "Admin Network Deletion": {"value": "True"}, "DHCP Support": {"value": "True"}, "DNS Support": {"value": "True"}, "IP Allocation Strategy": {"value": "Fixed Address"}, "Default Domain Name Pattern": {"value": "{subnet_id}.cloud.global.com"}}}
+wapi_request('PUT', object_type=ref,fields=dumps(data))
 
 s = utils(tenant_name)
 s.create_network(network)
