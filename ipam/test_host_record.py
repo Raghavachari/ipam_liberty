@@ -3,6 +3,7 @@ from json import loads
 from json import dumps
 import unittest
 import ConfigParser
+import time
 
 tenant_name = "admin"
 network = "net"
@@ -259,13 +260,16 @@ s = utils(tenant_name)
 params="?ipv4_address=" + gm_ip 
 gm_ref = wapi_request('GET', object_type="member", params=params)
 ref = loads(gm_ref)[0]['_ref']
-data = {"extattrs+": {"Default Host Name Pattern": {"value": "host-{ip_address}"}, "Admin Network Deletion": {"value": "True"}, "DHCP Support": {"value": "True"}, "DNS Support": {"value": "True"}, "IP Allocation Strategy": {"value": "Host Record"}, "Default Domain Name Pattern": {"value": "{subnet_id}.cloud.global.com"}}}
+data = {"extattrs+": {"Default Host Name Pattern": {"value": "host-{ip_address}"}, "Default Network View Scope": {"value": "Single"}, "Default Network View": {"value": "default"}, "Admin Network Deletion": {"value": "True"}, "DHCP Support": {"value": "True"}, "DNS Support": {"value": "True"}, "IP Allocation Strategy": {"value": "Host Record"}, "Default Domain Name Pattern": {"value": "{subnet_id}.cloud.global.com"}}}
 wapi_request('PUT', object_type=ref,fields=dumps(data))
+time.sleep(20)
 
 s.create_network(network)
 s.create_subnet(network, subnet_name, subnet)
+time.sleep(10)
 s.create_network(ext_net_name,external=True)
 s.create_subnet(ext_net_name, ext_snet_name, ext_snet)
+time.sleep(10)
 s.create_router("router", ext_net_name)
 s.create_port('internal_iface',network)
 s.add_router_interface('internal_iface', "router")
