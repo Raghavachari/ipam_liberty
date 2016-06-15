@@ -112,12 +112,14 @@ class utils:
         neutron_credentials['password'] = os.environ['OS_PASSWORD']
         self.neutron_client = client.Client(**neutron_credentials)
     
-    def get_domain_suffix_pattern_from_grid_config(self,netname,subname):
+    def get_domain_suffix_pattern_from_grid_config(self,netname,subname,rec_type="private"):
 	'''
 	Gets Zone name from 'Default Domain Name Pattern' in grid configuration
 	'''
         extattrs = self.get_grid_configuration()
-	domainsuffixpat = extattrs['Default Domain Name Pattern']['value']
+	#domainsuffixpat = extattrs['Default Domain Name Pattern']['value']
+        patt = ({True: 'Default Domain Name Pattern', False: 'External Domain Name Pattern'}[rec_type == "private"])
+	domainsuffixpat = extattrs[patt]['value']
 	if re.search("{tenant_id}", domainsuffixpat):
 	    tenantid = self.get_tenant_id()
 	    domainsuffixpat = re.sub("{tenant_id}",tenantid,domainsuffixpat)
@@ -134,13 +136,14 @@ class utils:
 	
 	return domainsuffixpat
 	    
-    def get_hostname_pattern_from_grid_config(self,ipadd,instanceobj,network,subnet):
+    def get_hostname_pattern_from_grid_config(self,ipadd,instanceobj,network,subnet,rec_type="private"):
 	'''
 	Gets Host name from 'Default Host Name Pattern' in grid configuration
 	'''
         extattrs = self.get_grid_configuration()
-	fqdn = self.get_domain_suffix_pattern_from_grid_config(network,subnet)
-	hostpat = extattrs['Default Host Name Pattern']['value']
+	fqdn = self.get_domain_suffix_pattern_from_grid_config(network,subnet,rec_type)
+        patt = ({True: 'Default Host Name Pattern', False: 'External Host Name Pattern'}[rec_type == "private"])
+	hostpat = extattrs[patt]['value']
 	#ipadd = instanceobj.addresses[network][0]['addr'] 
 	ipsplit = ipadd.split(".")
 	ipadd = ipadd.replace(".","-")
@@ -307,7 +310,8 @@ class utils:
             logger.error("Network '%s' does not exist", network_name)
 
     def get_grid_configuration(self):
-        args = "_return_fields=extattrs;ipv4_address=%s" % (GRID_VIP)
+        #args = "_return_fields=extattrs;ipv4_address=%s" % (GRID_VIP)
+        args = "_return_fields=extattrs;host_name=infoblox.localdomain"
         data = wapi_get_request("member", args)
 	extattrs = loads(data[1])[0]['extattrs']
 	return extattrs
@@ -433,4 +437,11 @@ class utils:
         instance = self.nova_client.servers.find(name=instance_name) 
         ips = self.nova_client.servers.ips(instance.id)
         return ips
-   
+
+    def interface_attach(self, server, network):
+        net_id, tenant_id = self.get_net_id(network)
+        iface = self.nova_client.servers.interface_attach(port_id='',fixed_ip='',server=server,net_id=net_id,)
+        return iface
+
+    def interface_detach(self, server, port_id):
+        self.nova_client.servers.interface_detach(server=server, port_id=port_id) 

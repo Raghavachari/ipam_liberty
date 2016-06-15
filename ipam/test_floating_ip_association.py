@@ -4,6 +4,7 @@ import unittest
 from json import dumps
 import ConfigParser
 import time
+import os
 
 tenant_name = "admin"
 network = "net"
@@ -11,7 +12,7 @@ subnet_name = "snet"
 ext_net_name = "public"
 ext_snet_name = "public_snet"
 ext_snet = "10.39.12.0/24"
-subnet = "129.127.0.0/24"
+subnet = "70.70.0.0/24"
 instance = "host"
 
 CONF = "config.ini"
@@ -681,20 +682,23 @@ class scenario1(unittest.TestCase):
         else:
             self.fail("EA for cmp_type is not OpenStack")
 
-params="?ipv4_address=" + gm_ip
+params="?host_name=infoblox.localdomain"
 gm_ref = wapi_request('GET', object_type="member", params=params)
 ref = loads(gm_ref)[0]['_ref']
-data = {"extattrs+": {"Default Host Name Pattern": {"value": "host-{ip_address}"}, "Default Network View Scope": {"value": "Single"}, "Default Network View": {"value": "default"}, "Admin Network Deletion": {"value": "True"}, "DHCP Support": {"value": "True"}, "DNS Support": {"value": "True"}, "IP Allocation Strategy": {"value": "Fixed Address"}, "Default Domain Name Pattern": {"value": "{subnet_id}.cloud.global.com"}}}
+data = {"extattrs+": {"Default Host Name Pattern": {"value": "host-{ip_address}"}, "Default Network View Scope": {"value": "Single"}, "Default Network View": {"value": "default"}, "Admin Network Deletion": {"value": "True"}, "DHCP Support": {"value": "True"}, "DNS Support": {"value": "True"}, "IP Allocation Strategy": {"value": "Fixed Address"}, "Default Domain Name Pattern": {"value": "{subnet_id}.cloud.global.com"},"External Host Name Pattern": {"value": "host-{ip_address}"},"External Domain Name Pattern": {"value": "{subnet_name}.external.global.com"}}}
 wapi_request('PUT', object_type=ref,fields=dumps(data))
+time.sleep(20)
+print "Restarting Devstack Screens"
+os.system("sudo -H -u stack screen -X -S stack quit")
+time.sleep(5)
+os.system("sudo -H -u stack screen -d -m -c /home/stack/devstack/stack-screenrc")
 time.sleep(20)
 
 s = utils(tenant_name)
 s.create_network(network)
 s.create_subnet(network, subnet_name, subnet)
-time.sleep(10)
 s.create_network(ext_net_name,external=True)
 s.create_subnet(ext_net_name, ext_snet_name, ext_snet)
-time.sleep(10)
 s.create_router("router", ext_net_name)
 s.create_port('internal_iface',network)
 s.add_router_interface('internal_iface', "router")
@@ -703,7 +707,7 @@ port_id = s.get_instance_port_id(s1.networks['net'][0])
 s.add_floating_ip(instance)
 ips = s.get_instance_ips(instance)
 host_name = s.get_hostname_pattern_from_grid_config(ips['net'][0]['addr'],s1,network,subnet_name)
-fip_host_name = s.get_hostname_pattern_from_grid_config(ips['net'][1]['addr'],s1,ext_net_name,ext_snet_name)
+fip_host_name = s.get_hostname_pattern_from_grid_config(ips['net'][1]['addr'],s1,ext_net_name,ext_snet_name,rec_type="public")
 
 print "*" * 70
 print "Starts Tests"

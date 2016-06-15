@@ -4,11 +4,12 @@ from json import dumps
 import unittest
 import ConfigParser
 import time
+import os
 
 tenant_name = "admin"
 network = "net"
 subnet_name = "snet"
-subnet = "129.127.0.0/24"
+subnet = "72.72.0.0/24"
 ext_net_name = "public"
 ext_snet_name = "public_snet"
 ext_snet = "10.39.12.0/24"
@@ -28,13 +29,21 @@ class TestHostRecord(unittest.TestCase):
         else:
             self.fail("Network %s is not added to NIOS" % subnet)
 
-    def test_Zone_added_to_NIOS(self):
-        args = "fqdn=%s" % (fqdn)
+    def test_External_Zone_added_to_NIOS(self):
+        args = "fqdn=%s" % (fqdn_external)
         code, msg = wapi_get_request("zone_auth", args)
         if code == 200 and len(loads(msg)) > 0:
-            self.assertEqual(loads(msg)[0]['fqdn'], fqdn)
+            self.assertEqual(loads(msg)[0]['fqdn'], fqdn_external)
         else:
-            self.fail("Zone %s is not added to NIOS" % fqdn)
+            self.fail("Zone %s is not added to NIOS" % fqdn_external)
+
+    def test_Internal_Zone_added_to_NIOS(self):
+        args = "fqdn=%s" % (fqdn_private)
+        code, msg = wapi_get_request("zone_auth", args)
+        if code == 200 and len(loads(msg)) > 0:
+            self.assertEqual(loads(msg)[0]['fqdn'], fqdn_private)
+        else:
+            self.fail("Zone %s is not added to NIOS" % fqdn_private)
     
     def test_instance_host_record(self):
         args = "name=%s" % (host_name)
@@ -232,7 +241,7 @@ class TestHostRecord(unittest.TestCase):
                 s1.user_id)
         else:
             self.fail(
-                "EA for user ID % does not match with NIOS" %
+                "EA for user ID %s does not match with NIOS" %
                 s1.user_id)
 
     def test_FIP_EA_Port_ID(self):
@@ -244,7 +253,7 @@ class TestHostRecord(unittest.TestCase):
                 port_id)
         else:
             self.fail(
-                "EA for PORT ID % does not match with NIOS" % port_id)
+                "EA for PORT ID %s does not match with NIOS" % port_id)
 
     def test_FIP_EA_CMP_Type(self):
         args = "name=%s&_return_fields=extattrs" % (fip_host_name)
@@ -257,19 +266,22 @@ class TestHostRecord(unittest.TestCase):
             self.fail("EA for cmp_type is not OpenStack")
 
 s = utils(tenant_name)
-params="?ipv4_address=" + gm_ip 
+params="?host_name=infoblox.localdomain" 
 gm_ref = wapi_request('GET', object_type="member", params=params)
 ref = loads(gm_ref)[0]['_ref']
 data = {"extattrs+": {"Default Host Name Pattern": {"value": "host-{ip_address}"}, "Default Network View Scope": {"value": "Single"}, "Default Network View": {"value": "default"}, "Admin Network Deletion": {"value": "True"}, "DHCP Support": {"value": "True"}, "DNS Support": {"value": "True"}, "IP Allocation Strategy": {"value": "Host Record"}, "Default Domain Name Pattern": {"value": "{subnet_id}.cloud.global.com"}}}
 wapi_request('PUT', object_type=ref,fields=dumps(data))
 time.sleep(20)
+print "Restarting Devstack Screens"
+os.system("sudo -H -u stack screen -X -S stack quit")
+time.sleep(5)
+os.system("sudo -H -u stack screen -d -m -c /home/stack/devstack/stack-screenrc")
+time.sleep(20)
 
 s.create_network(network)
 s.create_subnet(network, subnet_name, subnet)
-time.sleep(10)
 s.create_network(ext_net_name,external=True)
 s.create_subnet(ext_net_name, ext_snet_name, ext_snet)
-time.sleep(10)
 s.create_router("router", ext_net_name)
 s.create_port('internal_iface',network)
 s.add_router_interface('internal_iface', "router")
@@ -279,8 +291,9 @@ s.add_floating_ip(instance)
 ips = s.get_instance_ips(instance)
 host_name = s.get_hostname_pattern_from_grid_config(ips['net'][0]['addr'],s1,network,subnet_name)
 port_id = s.get_instance_port_id(s1.networks['net'][0])
-fip_host_name = s.get_hostname_pattern_from_grid_config(ips['net'][1]['addr'],s1,ext_net_name,ext_snet_name)
-fqdn = s.get_domain_suffix_pattern_from_grid_config(network, subnet_name)
+fip_host_name = s.get_hostname_pattern_from_grid_config(ips['net'][1]['addr'],s1,ext_net_name,ext_snet_name,rec_type="public")
+fqdn_external = s.get_domain_suffix_pattern_from_grid_config(ext_net_name, ext_snet_name, rec_type="public")
+fqdn_private = s.get_domain_suffix_pattern_from_grid_config(network, subnet_name, rec_type="private")
 
 print "*" * 70
 print "Starts Tests"
